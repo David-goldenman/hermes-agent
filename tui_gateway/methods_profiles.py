@@ -690,12 +690,17 @@ def _sync_profile_model_chats(profile_dir) -> None:
     with _sessions_lock:
         sessions = list(_sessions.items())
     for sid, session in sessions:
-        if not session.get("follow_profile_config") or session.get("running") or session.get("agent") is None:
-            continue
-        if Path(session.get("profile_home") or _hermes_home).resolve() != target_home:
-            continue
-        with _session_profile_runtime_scope(session):
-            _sync_agent_model_with_config(sid, session)
+        try:
+            if not session.get("follow_profile_config") or session.get("running") or session.get("agent") is None:
+                continue
+            if Path(session.get("profile_home") or _hermes_home).resolve() != target_home:
+                continue
+            with _session_profile_runtime_scope(session):
+                _sync_agent_model_with_config(sid, session)
+        except Exception:
+            # The profile is already saved; one failed chat must not turn the
+            # save into an error or prevent the other followers from updating.
+            logger.exception("Could not sync saved profile model for session %s", sid)
 
 
 def _clean_names(values) -> set:
